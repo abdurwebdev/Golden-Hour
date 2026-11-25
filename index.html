@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Golden Hour | A visual journal</title>
+<meta name="description" content="An interactive visual journal of ten places at golden hour. Drag the infinite canvas and open each story.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%85%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#150a05;--line:#ff6a1a;--ink:#fff1e6;--w:240px;--h:290px;--g:48px}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif}
+#stage{position:fixed;inset:0;touch-action:none;overflow:hidden;cursor:grab}
+#stage.down{cursor:grabbing}
+html.has-cur *{cursor:none!important}
+html.has-cur.open *{cursor:auto!important}
+#world{position:absolute;left:0;top:0;will-change:transform}
+.tile{position:absolute;display:grid;grid-template-columns:repeat(5,var(--w));grid-auto-rows:var(--h);gap:var(--g);padding:calc(var(--g)/2)}
+.card{width:var(--w);height:var(--h);position:relative;border-radius:14px;will-change:transform}
+.card .inner{position:absolute;inset:0;border-radius:14px;overflow:hidden}
+.card img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none}
+.card .ph{position:absolute;inset:0;display:grid;place-items:center;font-size:2.4rem;font-weight:700;color:var(--ink);background:linear-gradient(135deg,#ff6a1a,#ffb347 45%,#7a2a08);border-radius:14px}
+.spacer{width:var(--w);height:var(--h);visibility:hidden}
+#ui{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:5}
+#ui>*{position:absolute}
+#hint{left:24px;bottom:20px;opacity:.65;font-size:.9rem}
+#detail{position:fixed;inset:0;z-index:10;display:none;grid-template-columns:1.1fr 1fr;gap:5vw;align-items:center;padding:8vh 6vw}
+.dimg{aspect-ratio:4/5;max-height:80vh;width:min(100%,64vh);justify-self:center}
+.dimg .card{width:100%;height:100%}
+#detail h2{font-size:clamp(2.2rem,5.5vw,5rem);line-height:1;margin-bottom:1.2rem}
+#detail p{max-width:44ch;line-height:1.55;opacity:.85}
+#visit{display:none;margin-top:1.8rem;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:99px;padding:10px 22px}
+#visit:hover{background:var(--line);color:var(--bg)}
+html.open #about,html.open #hint{visibility:hidden}
+#close{position:absolute;right:24px;top:16px;background:none;color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:8px 18px;font:inherit}
+#close:hover{background:var(--line);color:var(--bg)}
+#cur{position:fixed;left:0;top:0;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;background:var(--line);color:var(--bg);display:none;place-items:center;font-weight:700;font-size:.95rem;pointer-events:none;z-index:50;transform:scale(.15)}
+html.has-cur #cur{display:grid}
+html.has-cur.open #cur{display:none}
+#about{right:24px;top:16px;pointer-events:auto;background:none;color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:8px 18px;font:inherit}
+#about:hover,#pclose:hover{background:var(--line);color:var(--bg)}
+#panel{position:fixed;inset:0;z-index:20;display:none;background:var(--bg);padding:12vh 6vw 6vh;grid-template-columns:1.6fr 1fr;gap:5vw;align-content:center}
+#panel h2{font-size:clamp(2rem,5.2vw,4.6rem);line-height:1.05;font-weight:700}
+#panel .more{max-width:40ch;line-height:1.55;opacity:.85;margin-bottom:2rem}
+#panel a{display:block;color:var(--ink);text-decoration:none;font-size:1.6rem;padding:.35rem 0;border-bottom:1px solid var(--line);width:fit-content;min-width:12ch}
+#panel a:hover{color:var(--line)}
+#pclose{position:absolute;right:24px;top:16px;background:none;color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:8px 18px;font:inherit}
+@media(max-width:700px){#panel{grid-template-columns:1fr;overflow:auto}}
+#cyl{position:fixed;inset:0;display:none;z-index:2;perspective:1700px;overflow:hidden;touch-action:none;cursor:grab}
+#ring{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d}
+.cc{position:absolute;left:0;top:0;backface-visibility:visible}
+#views{left:50%;bottom:22px;transform:translateX(-50%);pointer-events:auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:5px 6px 5px 18px}
+#views span{margin-right:8px;opacity:.8}
+#views button{background:none;border:0;color:var(--ink);font:inherit;padding:7px 18px;border-radius:99px}
+#views button.on{background:var(--line);color:var(--bg)}
+html.open #views{visibility:hidden}
+:focus-visible{outline:2px solid var(--line);outline-offset:3px}
+@media(max-width:700px){#detail{grid-template-columns:1fr;padding:12vh 6vw 4vh;overflow:auto}}
+</style>
+</head>
+<body>
+<div id="stage"><div id="world"></div></div>
+<div id="ui"><button id="about">About</button><div id="views"><span>View</span><button class="on" data-v="canvas">canvas</button><button data-v="cyl">cylinder</button></div><div id="hint">Drag or scroll to explore. Click a project to open it.</div></div>
+<div id="detail" role="dialog" aria-modal="true">
+  <button id="close">Close</button>
+  <div class="dimg"></div>
+  <div><h2></h2><p></p><a id="visit" target="_blank" rel="noopener"></a></div>
+</div>
+<section id="panel" aria-label="About and contact">
+  <button id="pclose">Close</button>
+  <div><h2>Golden Hour is a visual journal of places in their warmest light.</h2></div>
+  <div>
+    <p class="more">Ten places, one hour of the day. Drag across the canvas, open any place to read its story, and come back to wander again.</p>
+    <a class="more" href="https://unsplash.com" target="_blank" rel="noopener" data-t="Photos">Photos</a>
+    <a class="more" href="https://gsap.com" target="_blank" rel="noopener" data-t="GSAP">GSAP</a>
+  </div>
+</section>
+<div id="cyl"><div id="ring"></div></div>
+<div id="cur"><span></span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Flip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/InertiaPlugin.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Observer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrambleTextPlugin.min.js"></script>
+<script>
+gsap.registerPlugin(Flip, Draggable, InertiaPlugin, Observer, SplitText, ScrambleTextPlugin);
+
+/* ---- EDIT THESE ---- */
+const DIR = "images/";   // folder with 1 ... 10
+const EXTS = ["jpg", "jpeg", "jfif", "png", "webp", "avif", "JPG", "JPEG", "PNG"];
+// [title, description, link, link label, optional image URL]   Unsplash search term in the comment
+const PROJECTS = [
+  ["Sahara Dunes", "Wind-carved ridges glow copper in the last hour of light. The shadows grow long, the sand turns the colour of embers, and the whole desert goes quiet.", "", "", ""],          // sahara dunes sunset
+  ["Santorini Evening", "White walls turn peach as the sun drops into the Aegean. A slow walk along the caldera while the lanterns come on one by one.", "", "", ""],                            // santorini sunset
+  ["Canyon Light", "A single shaft of sun slips into a narrow slot canyon and lights the rock from within, shifting from gold to deep orange in minutes.", "", "", ""],                          // antelope canyon light
+  ["Tokyo Dusk", "Neon starts to flicker as the sky fades to amber over the rooftops. Crowds, trains and signs blur into one warm river of colour.", "", "", ""],                                  // tokyo dusk city
+  ["Marrakech Souk", "Copper lamps, spice pyramids and dyed fabrics fill the alleys. Late sun cuts through the market roofs and sets every colour on fire.", "", "", ""],                       // marrakech market
+  ["Desert Highway", "A straight road runs to the horizon under a burning sky. Nothing moves but heat haze, and the horizon never gets closer.", "", "", ""],                                      // desert road sunset
+  ["Lava Fields", "Dark volcanic ground lit by a low orange sun and the glow of distant steam vents. A landscape that still feels like it is being made.", "", "", ""],                         // iceland lava sunset
+  ["Autumn Kyoto", "Maple leaves in every shade of orange frame a quiet temple path. A soft light filters through the branches and warms the old wood.", "", "", ""],                           // kyoto autumn leaves
+  ["Cappadocia Balloons", "Dozens of hot-air balloons rise over fairy-chimney valleys at sunrise, drifting through a sky that fades from deep red to pale gold.", "", "", ""],                 // cappadocia balloons
+  ["Big Sur Cliffs", "Waves break far below a cliff road as the sun sinks into the Pacific. The coast turns bronze and the fog rolls in on cue.", "", "", ""]                                    // big sur coast sunset
+];
+/* -------------------- */
+
+const $ = s => document.querySelector(s), R = gsap.utils.random;
+const cyl = $("#cyl"), stage = $("#stage"), world = $("#world"), ui = $("#ui"), detail = $("#detail"), cur = $("#cur");
+const root = document.documentElement;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const N = PROJECTS.length, tiles = [], cards = [];
+let W, H, wrapX, wrapY, vw, vh, wX = 0, wY = 0, busy = true, openCard = null, spacer = null, split = null;
+
+function loadImg(img, ph, n, url) {
+  const srcs = (url ? [url] : []).concat(EXTS.map(e => DIR + n + "." + e));
+  let i = 0;
+  img.onload = () => ph.remove();
+  img.onerror = () => { if (++i < srcs.length) img.src = srcs[i]; else img.remove(); };
+  img.src = srcs[0];
+}
+for (let t = 0; t < 9; t++) {
+  const tile = document.createElement("div");
+  tile.className = "tile";
+  for (let k = 0; k < 10; k++) {                       // 5 x 2 = 10 cards per tile = 10 in the viewport
+    const idx = N >= 10 ? k : (k + 2 * Math.floor(k / 5)) % N;
+    const el = document.createElement("div");
+    el.className = "card"; el.tabIndex = 0; el.dataset.i = idx;
+    el.innerHTML = '<div class="inner"><span class="ph">' + (idx + 1) + '</span><img alt="' + PROJECTS[idx][0] + '" draggable="false"></div>';
+    loadImg(el.querySelector("img"), el.querySelector(".ph"), idx + 1, PROJECTS[idx][4]);
+    tile.appendChild(el);
+    const d = { el, inner: el.firstChild, t, k, bx: 0, by: 0 };
+    el._d = d; cards.push(d);
+  }
+  world.appendChild(tile); tiles.push(tile);
+}
+
+function measure() {
+  vw = innerWidth; vh = innerHeight;
+  const w = Math.max(vw * 0.165, 120), g = Math.max(vw / 5 - w, 20), h = w * 1.2;
+  root.style.setProperty("--w", w + "px"); root.style.setProperty("--h", h + "px"); root.style.setProperty("--g", g + "px");
+  W = 5 * (w + g); H = 2 * (h + g);
+  tiles.forEach((t, i) => { t.style.left = (i % 3) * W + "px"; t.style.top = Math.floor(i / 3) * H + "px"; });
+  cards.forEach(d => {                                  // base centre of each card in world space
+    d.bx = (d.t % 3) * W + g / 2 + (d.k % 5) * (w + g) + w / 2;
+    d.by = Math.floor(d.t / 3) * H + g / 2 + Math.floor(d.k / 5) * (h + g) + h / 2;
+  });
+  wrapX = gsap.utils.wrap(-W, 0); wrapY = gsap.utils.wrap(-H, 0);
+}
+measure();
+
+/* ---- cylinder view: a spiral of cards around a cylinder ---- */
+const ring = $("#ring"), ccs = [], M = 30, S = { rot: 0, vel: 0 };
+let mode = "canvas", switching = false, hov = null, cylOpen = false, cylHide = false, openClone = null;
+const HINT = { canvas: "Drag or scroll to explore. Click a project to open it.", cyl: "Scroll or drag to spin. Hover to focus. Click to open." };
+for (let i = 0; i < M; i++) {                              // 3 turns of 10 cards
+  const idx = i % N, el = document.createElement("div");
+  el.className = "card cc"; el.dataset.i = idx; el.style.opacity = 0;
+  el.innerHTML = '<div class="inner"><span class="ph">' + (idx + 1) + '</span><img alt="' + PROJECTS[idx][0] + '" draggable="false"></div>';
+  loadImg(el.querySelector("img"), el.querySelector(".ph"), idx + 1, PROJECTS[idx][4]);
+  ring.appendChild(el); ccs.push({ el, th: i * 36, o: 0 });
+}
+function layoutCyl() {
+  const w = Math.max(vw * 0.11, 110), h = w * 1.25, Rd = 1.9 * w, step = h * 0.28;
+  ccs.forEach((c, i) => {
+    Object.assign(c.el.style, { width: w + "px", height: h + "px", marginLeft: -w / 2 + "px", marginTop: -h / 2 + "px" });
+    gsap.set(c.el, { rotationY: c.th, y: (i - (M - 1) / 2) * step, transformOrigin: "50% 50% " + -Rd + "px" });
+  });
+  gsap.set(ring, { rotationX: -8, transformOrigin: "50% 50% " + -Rd + "px" });
+}
+
+/* ---- infinite draggable canvas ---- */
+const proxy = document.createElement("div");
+function apply() {
+  wX = wrapX(gsap.getProperty(proxy, "x")); wY = wrapY(gsap.getProperty(proxy, "y"));
+  gsap.set(world, { x: wX, y: wY });
+}
+function recenter() { gsap.set(proxy, { x: (vw - W) / 2 - W, y: (vh - H) / 2 - H }); apply(); }
+recenter();
+
+const drag = Draggable.create(proxy, {
+  trigger: stage, type: "x,y", inertia: true, dragClickables: true,
+  onDrag: apply, onThrowUpdate: apply,
+  onClick(e) { const c = e.target.closest(".card"); if (c) openDetail(c); }
+})[0];
+
+Observer.create({
+  target: stage, type: "wheel", tolerance: 2,
+  onChange(s) {
+    if (busy || mode !== "canvas") return;
+    gsap.set(proxy, { x: "-=" + s.deltaX, y: "-=" + s.deltaY });
+    drag.update(); apply();
+  }
+});
+
+/* ---- concave bend: cards at the left and right curve toward the viewer while moving ---- */
+let lx = 0, ly = 0, speed = 0, warped = false;
+gsap.ticker.add(() => {
+  const px = gsap.getProperty(proxy, "x"), py = gsap.getProperty(proxy, "y");
+  speed += (Math.hypot(px - lx, py - ly) - speed) * 0.12; lx = px; ly = py;
+  const s = busy ? 0 : Math.min(speed / 18, 1);
+  if (s < 0.003) { if (warped) { cards.forEach(d => d.inner.style.transform = ""); warped = false; } return; }
+  warped = true;
+  const half = vw / 2;
+  for (const d of cards) {
+    const nx = Math.max(-1.5, Math.min(1.5, (d.bx + wX - half) / half));
+    d.inner.style.transform = "perspective(900px) translateZ(" + (nx * nx * 150 * s) + "px) rotateY(" + (-nx * 32 * s) + "deg)";
+  }
+});
+
+/* ---- custom cursor ---- */
+if (matchMedia("(hover:hover) and (pointer:fine)").matches) {
+  root.classList.add("has-cur");
+  const mx = gsap.quickTo(cur, "x", { duration: 0.25, ease: "power3" }), my = gsap.quickTo(cur, "y", { duration: 0.25, ease: "power3" });
+  let overCard = false, pressed = false;
+  const label = cur.firstChild;
+  const state = () => {
+    if (pressed) { label.textContent = "Drag"; gsap.to(cur, { scale: 0.6, duration: 0.3 }); }
+    else if (overCard) { label.textContent = "View"; gsap.to(cur, { scale: 1, duration: 0.3 }); }
+    else { label.textContent = ""; gsap.to(cur, { scale: 0.15, duration: 0.3 }); }
+  };
+  addEventListener("pointermove", e => { mx(e.clientX); my(e.clientY); const o = !!e.target.closest(".card") && !busy; if (o !== overCard) { overCard = o; state(); } });
+  [stage, cyl].forEach(el => el.addEventListener("pointerdown", () => { pressed = true; stage.classList.add("down"); state(); }));
+  addEventListener("pointerup", () => { pressed = false; stage.classList.remove("down"); state(); });
+}
+
+/* ---- project details: card flies to the detail layout, the rest scatter, then it all returns ---- */
+function openDetail(el) {
+  if (busy) return;
+  busy = true; openCard = el; drag.disable(); root.classList.add("open");
+  const d = el._d, p = PROJECTS[el.dataset.i];
+  d.inner.style.transform = "";
+  $("#detail h2").textContent = p[0]; $("#detail p, #visit").textContent = p[1];
+  detail.style.display = "grid";
+  const others = cards.filter(c => c !== d).map(c => c.el);
+  const cx = d.bx + wX, cy = d.by + wY;
+  gsap.to(others, {
+    x: (i, t) => { const o = t._d, dx = o.bx + wX - cx, dy = o.by + wY - cy; return dx / (Math.hypot(dx, dy) || 1) * 700; },
+    y: (i, t) => { const o = t._d, dx = o.bx + wX - cx, dy = o.by + wY - cy; return dy / (Math.hypot(dx, dy) || 1) * 700; },
+    scale: 0.85, duration: reduce ? 0 : 0.9, ease: "power3.inOut", overwrite: true
+  });
+  gsap.to(others, { opacity: 0, duration: reduce ? 0 : 0.3 });
+  const state = Flip.getState(el);
+  spacer = document.createElement("div"); spacer.className = "spacer";
+  el.parentNode.insertBefore(spacer, el);
+  $(".dimg").appendChild(el);
+  Flip.from(state, { duration: reduce ? 0 : 1, ease: "power3.inOut", absolute: true });
+  split = SplitText.create("#detail h2", { type: "words,chars", mask: "chars" });
+  gsap.from(split.chars, { yPercent: 110, duration: reduce ? 0 : 0.8, ease: "power4.out", stagger: 0.03, delay: 0.5 });
+  gsap.fromTo("#detail p, #visit", { opacity: 0, y: 20 }, { opacity: 0.85, y: 0, duration: reduce ? 0 : 0.8, delay: 0.9 });
+  $("#close").focus();
+}
+function closeDetail() {
+  if (!openCard) return;
+  if (mode === "cyl") return closeCyl();
+  const el = openCard, t = reduce ? 0 : 1;
+  gsap.to(split.chars, { yPercent: 110, duration: 0.4 * t, stagger: 0.02 * t });
+  gsap.to("#detail p, #visit", { opacity: 0, duration: 0.3 * t });
+  gsap.delayedCall(0.45 * t, () => {
+    const state = Flip.getState(el);
+    spacer.replaceWith(el);
+    const rest = cards.map(c => c.el).filter(c => c !== el);
+    Flip.from(state, { duration: t, ease: "power3.inOut", absolute: true, onComplete() {
+      gsap.set(rest, { x: 0, y: 0, scale: 1 });
+      gsap.to(rest, { opacity: 1, duration: 0.6 * t });
+    }});
+  });
+  gsap.delayedCall(0.5 * t + t + 0.65 * t, () => {
+    detail.style.display = "none"; split.revert(); gsap.set("#detail p, #visit", { clearProps: "all" });
+    root.classList.remove("open"); drag.enable(); openCard = null; busy = false; el.focus();
+  });
+}
+$("#close").onclick = closeDetail;
+
+/* ---- about / contact panel: circular reveal, SplitText lines, ScrambleText links ---- */
+const panel = $("#panel"); let panelOpen = false, psplit = null;
+const clip = r => "circle(" + r + "% at 95% 4%)";
+function openPanel() {
+  if (busy) return;
+  busy = panelOpen = true; drag.disable(); root.classList.add("open"); panel.style.display = "grid";
+  const t = reduce ? 0 : 1;
+  gsap.fromTo(panel, { clipPath: clip(0) }, { clipPath: clip(150), duration: 1.1 * t, ease: "power3.inOut" });
+  psplit = SplitText.create("#panel h2", { type: "lines", mask: "lines" });
+  gsap.from(psplit.lines, { yPercent: 110, duration: 0.9 * t, ease: "power4.out", stagger: 0.1 * t, delay: 0.5 * t });
+  gsap.from("#panel .more", { opacity: 0, y: 20, duration: 0.8 * t, delay: 0.8 * t, stagger: 0.1 * t });
+  $("#pclose").focus();
+}
+function closePanel() {
+  if (!panelOpen) return;
+  gsap.to(panel, { clipPath: clip(0), duration: reduce ? 0 : 0.8, ease: "power3.inOut", onComplete() {
+    panel.style.display = "none"; psplit.revert(); drag.enable(); root.classList.remove("open"); panelOpen = busy = false;
+  }});
+}
+$("#about").onclick = openPanel; $("#pclose").onclick = closePanel;
+panel.querySelectorAll("a").forEach(a => a.addEventListener("mouseenter", () =>
+  !reduce && gsap.to(a, { duration: 0.6, scrambleText: { text: a.dataset.t, chars: "upperAndLowerCase", speed: 0.6 } })));
+addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeDetail(); closePanel(); }
+  if (e.key === "Enter" && document.activeElement.classList.contains("card")) openDetail(document.activeElement);
+});
+addEventListener("resize", () => { if (!busy) { measure(); recenter(); if (mode === "cyl") layoutCyl(); } });
+
+/* ---- cylinder: speed follows scroll, hover focuses a card, click opens it ---- */
+gsap.ticker.add(() => {
+  if (mode !== "cyl") return;
+  if (!cylOpen) { S.vel *= 0.94; S.rot += S.vel + (hov || reduce ? 0 : 0.08); }
+  gsap.set(ring, { rotationY: S.rot });
+  for (const c of ccs) {
+    const depth = Math.cos((c.th + S.rot) * Math.PI / 180);
+    let t = 0.28 + 0.72 * (depth + 1) / 2;
+    if (cylHide || cylOpen) t = 0; else if (hov && hov !== c.el) t *= 0.15;
+    c.o += (t - c.o) * 0.14; c.el.style.opacity = c.o.toFixed(3);
+  }
+});
+Observer.create({
+  target: cyl, type: "wheel,touch,pointer", tolerance: 2,
+  onChange(self) {
+    if (busy || mode !== "cyl") return;
+    const wheel = self.event && self.event.type === "wheel";
+    S.vel = gsap.utils.clamp(-14, 14, S.vel + (wheel ? (self.deltaY + self.deltaX) * 0.012 : -self.deltaX * 0.12));
+  }
+});
+ring.addEventListener("pointerover", e => { if (!busy) hov = (e.target.closest(".cc") || {}).el || e.target.closest(".cc"); });
+ring.addEventListener("pointerleave", () => { hov = null; });
+let dx = 0, dy = 0;
+cyl.addEventListener("pointerdown", e => { dx = e.clientX; dy = e.clientY; });
+cyl.addEventListener("click", e => {
+  const c = e.target.closest(".cc");
+  if (c && !busy && Math.hypot(e.clientX - dx, e.clientY - dy) < 8) openCyl(c);
+});
+
+function openCyl(el) {
+  busy = true; openCard = el; cylOpen = true; hov = null; root.classList.add("open");
+  const p = PROJECTS[el.dataset.i], t = reduce ? 0 : 1;
+  $("#detail h2").textContent = p[0]; $("#detail p").textContent = p[1];
+  const v = $("#visit"); if (p[2]) { v.href = p[2]; v.textContent = p[3]; v.style.display = "inline-block"; } else v.style.display = "none";
+  detail.style.display = "grid";
+  const r = el.getBoundingClientRect(), clone = document.createElement("div");   // flat copy that flies to the detail layout
+  clone.className = "card"; clone.innerHTML = el.innerHTML; openClone = clone;
+  clone.style.cssText = "position:fixed;left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;height:" + r.height + "px;margin:0;z-index:15";
+  document.body.appendChild(clone); el.style.visibility = "hidden";
+  const state = Flip.getState(clone);
+  $(".dimg").appendChild(clone); clone.style.cssText = "";
+  Flip.from(state, { duration: t, ease: "power3.inOut", absolute: true });
+  split = SplitText.create("#detail h2", { type: "words,chars", mask: "chars" });
+  gsap.from(split.chars, { yPercent: 110, duration: 0.8 * t, ease: "power4.out", stagger: 0.03, delay: 0.5 * t });
+  gsap.fromTo("#detail p, #visit", { opacity: 0, y: 20 }, { opacity: 0.85, y: 0, duration: 0.8 * t, delay: 0.9 * t });
+  $("#close").focus();
+}
+function closeCyl() {
+  const el = openCard, clone = openClone, t = reduce ? 0 : 1;
+  gsap.to(split.chars, { yPercent: 110, duration: 0.4 * t, stagger: 0.02 * t });
+  gsap.to("#detail p, #visit", { opacity: 0, duration: 0.3 * t });
+  gsap.delayedCall(0.45 * t, () => {
+    const r = el.getBoundingClientRect(), state = Flip.getState(clone);
+    document.body.appendChild(clone);
+    clone.style.cssText = "position:fixed;left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;height:" + r.height + "px;margin:0;z-index:15";
+    cylOpen = false;
+    Flip.from(state, { duration: t, ease: "power3.inOut", onComplete() { clone.remove(); el.style.visibility = ""; } });
+  });
+  gsap.delayedCall(1.55 * t + 0.05, () => {
+    detail.style.display = "none"; split.revert(); gsap.set("#detail p, #visit", { clearProps: "all" });
+    root.classList.remove("open"); openCard = openClone = null; busy = false;
+  });
+}
+
+/* ---- view switch ---- */
+function setMode(m) {
+  if (busy || switching || m === mode) return;
+  switching = true; const t = reduce ? 0 : 1;
+  document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === m));
+  $("#hint").textContent = HINT[m];
+  if (m === "cyl") {
+    layoutCyl(); cyl.style.display = "block"; mode = "cyl"; cylHide = false; drag.disable(); S.vel = 0;
+    ccs.forEach(c => c.o = 0);
+    const r0 = S.rot;
+    gsap.to(stage, { opacity: 0, duration: 0.7 * t });
+    gsap.fromTo(S, { rot: r0 - 100 }, { rot: r0, duration: 1.8 * t, ease: "power3.out" });
+    gsap.fromTo(ring, { scale: 0.6 }, { scale: 1, duration: 1.4 * t, ease: "power3.out" });
+    gsap.delayedCall(1.8 * t, () => switching = false);
+  } else {
+    cylHide = true;
+    gsap.to(stage, { opacity: 1, duration: 0.7 * t, delay: 0.4 * t });
+    gsap.delayedCall(0.9 * t, () => { cyl.style.display = "none"; mode = "canvas"; cylHide = false; drag.enable(); switching = false; });
+  }
+}
+document.querySelectorAll("#views button").forEach(b => b.onclick = () => setMode(b.dataset.v));
+
+/* ---- intro: cards are thrown in from every direction and land in place ---- */
+function intro() {
+  if (reduce) { ui.style.opacity = 1; busy = false; return; }
+  drag.disable();
+  const off = cards.map(d => ({ x: vw / 2 - (d.bx + wX), y: vh / 2 - (d.by + wY) }));   // card -> viewport centre
+  const mid = cards.filter(d => d.t === 4), maxDist = Math.hypot(W * 1.5, H * 1.5);
+  // everything starts stacked at the centre; only the middle 10 are visible, the rest wait underneath
+  cards.forEach((d, i) => gsap.set(d.el, { x: off[i].x, y: off[i].y + (d.t === 4 ? vh : 0), scale: 0.5, rotation: R(-9, 9),
+    opacity: d.t === 4 ? 1 : 0, zIndex: d.t === 4 ? 10 + d.k : 0 }));
+  const tl = gsap.timeline({ onComplete() {
+    gsap.set(cards.map(c => c.el), { clearProps: "zIndex" }); drag.enable(); busy = false;
+  }});
+  mid.forEach(d => tl.to(d.el, { y: off[cards.indexOf(d)].y, duration: 0.9, ease: "power3.out" }, d.k * 0.12));   // rise one by one
+  tl.addLabel("spread", "+=0.2");
+  cards.forEach((d, i) => {                                   // spread outward, nearest cards first
+    const delay = Math.hypot(d.bx + wX - vw / 2, d.by + wY - vh / 2) / maxDist * 0.6;
+    tl.set(d.el, { opacity: 1 }, "spread+=" + delay)
+      .to(d.el, { x: 0, y: 0, scale: 1, rotation: 0, duration: 1.5, ease: "expo.inOut" }, "spread+=" + delay);
+  });
+  tl.to(ui, { opacity: 1, duration: 0.6 }, "spread+=1.2");
+}
+addEventListener("load", intro);
+</script>
+</body>
+</html>
