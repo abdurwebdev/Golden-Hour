@@ -6,8 +6,49 @@
 <title>Golden Hour | A visual journal</title>
 <meta name="description" content="An interactive visual journal of ten places at golden hour. Drag the infinite canvas and open each story.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%85%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700&display=swap"></noscript>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Flip.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Draggable.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/InertiaPlugin.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Observer.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrambleTextPlugin.min.js"></script>
+<script>
+/* Starts hunting for the images immediately, in parallel with the GSAP download. */
+/* ---- EDIT THESE ---- */
+const DIR = "images/";   // folder with 1 ... 10
+const EXTS = ["jpg", "png", "webp", "jpeg", "jfif", "avif", "JPG", "JPEG", "PNG"];   // first 4 are tried together, the rest only if those all miss
+// [title, description, link, link label, optional image URL]   Unsplash search term in the comment
+const PROJECTS = [
+  ["Sahara Dunes", "Wind-carved ridges glow copper in the last hour of light. The shadows grow long, the sand turns the colour of embers, and the whole desert goes quiet.", "", "", ""],          // sahara dunes sunset
+  ["Santorini Evening", "White walls turn peach as the sun drops into the Aegean. A slow walk along the caldera while the lanterns come on one by one.", "", "", ""],                            // santorini sunset
+  ["Canyon Light", "A single shaft of sun slips into a narrow slot canyon and lights the rock from within, shifting from gold to deep orange in minutes.", "", "", ""],                          // antelope canyon light
+  ["Tokyo Dusk", "Neon starts to flicker as the sky fades to amber over the rooftops. Crowds, trains and signs blur into one warm river of colour.", "", "", ""],                                  // tokyo dusk city
+  ["Marrakech Souk", "Copper lamps, spice pyramids and dyed fabrics fill the alleys. Late sun cuts through the market roofs and sets every colour on fire.", "", "", ""],                       // marrakech market
+  ["Desert Highway", "A straight road runs to the horizon under a burning sky. Nothing moves but heat haze, and the horizon never gets closer.", "", "", ""],                                      // desert road sunset
+  ["Lava Fields", "Dark volcanic ground lit by a low orange sun and the glow of distant steam vents. A landscape that still feels like it is being made.", "", "", ""],                         // iceland lava sunset
+  ["Autumn Kyoto", "Maple leaves in every shade of orange frame a quiet temple path. A soft light filters through the branches and warms the old wood.", "", "", ""],                           // kyoto autumn leaves
+  ["Cappadocia Balloons", "Dozens of hot-air balloons rise over fairy-chimney valleys at sunrise, drifting through a sky that fades from deep red to pale gold.", "", "", ""],                 // cappadocia balloons
+  ["Big Sur Cliffs", "Waves break far below a cliff road as the sun sinks into the Pacific. The coast turns bronze and the fog rolls in on cue.", "", "", ""]                                    // big sur coast sunset
+];
+/* -------------------- */
+function tryLoad(src) {
+  return new Promise((ok, no) => { const im = new Image(); im.decoding = "async"; im.onload = () => ok(src); im.onerror = no; im.src = src; });
+}
+async function findImage(i) {                          // all likely extensions at once, rare ones only as a fallback
+  const base = DIR + (i + 1) + ".";
+  const first = (PROJECTS[i][4] ? [PROJECTS[i][4]] : []).concat(EXTS.slice(0, 4).map(e => base + e));
+  try { return await Promise.any(first.map(tryLoad)); } catch (e) {}
+  try { return await Promise.any(EXTS.slice(4).map(e => tryLoad(base + e))); } catch (e) {}
+  return null;
+}
+const IMG = PROJECTS.map((_, i) => findImage(i));
+</script>
+
 <style>
 :root{--bg:#150a05;--line:#ff6a1a;--ink:#fff1e6;--w:240px;--h:290px;--g:48px}
 *{box-sizing:border-box;margin:0}
@@ -20,7 +61,8 @@ html.has-cur.open *{cursor:auto!important}
 .tile{position:absolute;display:grid;grid-template-columns:repeat(5,var(--w));grid-auto-rows:var(--h);gap:var(--g);padding:calc(var(--g)/2)}
 .card{width:var(--w);height:var(--h);position:relative;border-radius:14px;will-change:transform}
 .card .inner{position:absolute;inset:0;border-radius:14px;overflow:hidden}
-.card img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none}
+.card img{opacity:0;transition:opacity .45s ease;position:relative;z-index:1;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none}
+.card img.ld{opacity:1}
 .card .ph{position:absolute;inset:0;display:grid;place-items:center;font-size:2.4rem;font-weight:700;color:var(--ink);background:linear-gradient(135deg,#ff6a1a,#ffb347 45%,#7a2a08);border-radius:14px}
 .spacer{width:var(--w);height:var(--h);visibility:hidden}
 #ui{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:5}
@@ -59,11 +101,12 @@ html.open #views{visibility:hidden}
 :focus-visible{outline:2px solid var(--line);outline-offset:3px}
 @media(max-width:700px){#detail{grid-template-columns:1fr;padding:12vh 6vw 4vh;overflow:auto}}
 #loader{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center}
-#loader .in{display:grid;justify-items:center;gap:20px;opacity:0}
-html.fonts #loader .in{opacity:1}
+#loader .in{display:grid;justify-items:center;gap:20px}
 #loader .brand{font-size:clamp(2rem,6vw,4.5rem);font-weight:700;line-height:1}
 #loader .meter{display:flex;align-items:center;gap:14px;width:min(260px,60vw);font-variant-numeric:tabular-nums;opacity:.8}
 #loader .track{flex:1;height:2px;background:rgba(255,106,26,.25);overflow:hidden}
+@keyframes pre{0%,100%{transform:scaleX(.06)}50%{transform:scaleX(.4)}}
+html:not(.ready) #bar{animation:pre 1.2s ease-in-out infinite}
 #bar{display:block;height:100%;background:var(--line);transform:scaleX(0);transform-origin:left}
 #num{min-width:4ch;text-align:right;font-size:.9rem}
 html.loading #stage,html.loading #ui{visibility:hidden}
@@ -74,7 +117,7 @@ html.failed #stage,html.failed #ui{visibility:visible}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 <noscript><style>#loader{display:none}html.loading #stage,html.loading #ui{visibility:visible}</style></noscript>
-<script>setTimeout(function(){if(!window.__booted)document.documentElement.classList.add("failed")},15000)</script>
+<script>setTimeout(function(){if(!window.__booted)document.documentElement.classList.add("failed")},8000)</script>
 </head>
 <body>
 <div id="loader" role="status" aria-label="Loading Golden Hour"><div class="in"><div class="brand">Golden Hour</div><div class="meter" aria-hidden="true"><span class="track"><i id="bar"></i></span><span id="num">0%</span></div></div></div>
@@ -97,34 +140,11 @@ html.failed #stage,html.failed #ui{visibility:visible}
 <div id="cyl"><div id="ring"></div></div>
 <div id="cur"><span></span></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Flip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Draggable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/InertiaPlugin.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Observer.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrambleTextPlugin.min.js"></script>
-<script>
+<script type="module">
 gsap.registerPlugin(Flip, Draggable, InertiaPlugin, Observer, SplitText, ScrambleTextPlugin);
 window.__booted = true;
 
-/* ---- EDIT THESE ---- */
-const DIR = "images/";   // folder with 1 ... 10
-const EXTS = ["jpg", "jpeg", "jfif", "png", "webp", "avif", "JPG", "JPEG", "PNG"];
-// [title, description, link, link label, optional image URL]   Unsplash search term in the comment
-const PROJECTS = [
-  ["Sahara Dunes", "Wind-carved ridges glow copper in the last hour of light. The shadows grow long, the sand turns the colour of embers, and the whole desert goes quiet.", "", "", ""],          // sahara dunes sunset
-  ["Santorini Evening", "White walls turn peach as the sun drops into the Aegean. A slow walk along the caldera while the lanterns come on one by one.", "", "", ""],                            // santorini sunset
-  ["Canyon Light", "A single shaft of sun slips into a narrow slot canyon and lights the rock from within, shifting from gold to deep orange in minutes.", "", "", ""],                          // antelope canyon light
-  ["Tokyo Dusk", "Neon starts to flicker as the sky fades to amber over the rooftops. Crowds, trains and signs blur into one warm river of colour.", "", "", ""],                                  // tokyo dusk city
-  ["Marrakech Souk", "Copper lamps, spice pyramids and dyed fabrics fill the alleys. Late sun cuts through the market roofs and sets every colour on fire.", "", "", ""],                       // marrakech market
-  ["Desert Highway", "A straight road runs to the horizon under a burning sky. Nothing moves but heat haze, and the horizon never gets closer.", "", "", ""],                                      // desert road sunset
-  ["Lava Fields", "Dark volcanic ground lit by a low orange sun and the glow of distant steam vents. A landscape that still feels like it is being made.", "", "", ""],                         // iceland lava sunset
-  ["Autumn Kyoto", "Maple leaves in every shade of orange frame a quiet temple path. A soft light filters through the branches and warms the old wood.", "", "", ""],                           // kyoto autumn leaves
-  ["Cappadocia Balloons", "Dozens of hot-air balloons rise over fairy-chimney valleys at sunrise, drifting through a sky that fades from deep red to pale gold.", "", "", ""],                 // cappadocia balloons
-  ["Big Sur Cliffs", "Waves break far below a cliff road as the sun sinks into the Pacific. The coast turns bronze and the fog rolls in on cue.", "", "", ""]                                    // big sur coast sunset
-];
-/* -------------------- */
+
 
 const $ = s => document.querySelector(s), R = gsap.utils.random;
 const cyl = $("#cyl"), stage = $("#stage"), world = $("#world"), ui = $("#ui"), detail = $("#detail"), cur = $("#cur");
@@ -137,17 +157,13 @@ let W, H, wrapX, wrapY, vw, vh, wX = 0, wY = 0, busy = true, openCard = null, sp
 
 const slots = PROJECTS.map(() => []);                 // [img, placeholder] pairs waiting for each project's image
 function register(idx, el) { slots[idx].push([el.querySelector("img"), el.querySelector(".ph")]); }
-function probe(src) {
-  return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
-}
-async function resolveImage(i) {                        // find and decode each file once, not once per card
-  const srcs = (PROJECTS[i][4] ? [PROJECTS[i][4]] : []).concat(EXTS.map(e => DIR + (i + 1) + "." + e));
-  let url = null;
-  for (const src of srcs) {
-    const im = await probe(src);
-    if (im) { try { await im.decode(); } catch (e) {} url = src; break; }
-  }
-  slots[i].forEach(([img, ph]) => { if (url) { img.onload = () => ph.remove(); img.src = url; } else img.remove(); });
+function applyImage(i, url) {                          // fade each photo in over its placeholder as soon as it is found
+  slots[i].forEach(([img, ph]) => {
+    if (!url) return img.remove();
+    img.decoding = "async";
+    img.onload = () => { img.classList.add("ld"); setTimeout(() => ph.remove(), 500); };
+    img.src = url;
+  });
 }
 for (let t = 0; t < 9; t++) {
   const tile = document.createElement("div");
@@ -428,35 +444,36 @@ function prepareIntro() {
   const tl = gsap.timeline({ paused: true, onComplete() {
     gsap.set(cards.map(c => c.el), { clearProps: "zIndex" }); drag.enable(); busy = false;
   }});
-  mid.forEach(d => tl.to(d.el, { y: off[cards.indexOf(d)].y, duration: 0.9, ease: "power3.out" }, d.k * 0.12));   // rise one by one
-  tl.addLabel("spread", "+=0.2");
+  mid.forEach(d => tl.to(d.el, { y: off[cards.indexOf(d)].y, duration: 0.7, ease: "power3.out" }, d.k * 0.07));   // rise one by one
+  tl.addLabel("spread", "+=0.1");
   cards.forEach((d, i) => {                                   // spread outward, nearest cards first
-    const delay = Math.hypot(d.bx + wX - vw / 2, d.by + wY - vh / 2) / maxDist * 0.6;
+    const delay = Math.hypot(d.bx + wX - vw / 2, d.by + wY - vh / 2) / maxDist * 0.4;
     tl.set(d.el, { opacity: 1 }, "spread+=" + delay)
-      .to(d.el, { x: 0, y: 0, scale: 1, rotation: 0, duration: 1.5, ease: "expo.inOut" }, "spread+=" + delay);
+      .to(d.el, { x: 0, y: 0, scale: 1, rotation: 0, duration: 1.1, ease: "expo.inOut" }, "spread+=" + delay);
   });
-  tl.to(ui, { opacity: 1, duration: 0.6 }, "spread+=1.2");
+  tl.to(ui, { opacity: 1, duration: 0.6 }, "spread+=0.8");
   return tl;
 }
 
-/* ---- loading: nothing is shown until the font and every image are ready, then the intro plays ---- */
+/* ---- loading: the loader paints instantly; we wait for the photos only up to a short budget, the rest fade in ---- */
+const LOAD_BUDGET = 2500;                                 // ms; slower images simply fade in after the intro starts
 (async function boot() {
   const loader = $("#loader"), bar = $("#bar"), num = $("#num"), prog = { v: 0 };
   const total = N + 1, wait = ms => new Promise(r => setTimeout(r, ms));
-  let done = 0;
+  let done = 0, finished = false;
   const paint = () => { bar.style.transform = "scaleX(" + prog.v + ")"; num.textContent = Math.round(prog.v * 100) + "%"; };
-  const step = () => gsap.to(prog, { v: ++done / total, duration: reduce ? 0 : 0.6, ease: "power2.out", onUpdate: paint, overwrite: true });
-  const font = Promise.race([document.fonts.load('700 1em "Bricolage Grotesque"'), wait(3000)])
-    .catch(() => {}).then(() => { root.classList.add("fonts"); step(); });
-  const imgs = PROJECTS.map((_, i) => resolveImage(i).catch(() => {}).then(step));
-  await Promise.race([Promise.all([font, ...imgs, wait(reduce ? 0 : 800)]), wait(12000)]);
-  await new Promise(r => gsap.to(prog, { v: 1, duration: reduce ? 0 : 0.35, ease: "none", onUpdate: paint, onComplete: r, overwrite: true }));
+  const step = () => { if (!finished) gsap.to(prog, { v: ++done / total, duration: reduce ? 0 : 0.3, ease: "power2.out", onUpdate: paint, overwrite: true }); };
+  root.classList.add("ready"); step();                    // scripts are in: first slice of the bar
+  const imgs = IMG.map((p, i) => p.catch(() => null).then(url => { applyImage(i, url); step(); }));
+  await Promise.race([Promise.all([...imgs, wait(reduce ? 0 : 300)]), wait(LOAD_BUDGET)]);
+  finished = true;
+  await new Promise(r => gsap.to(prog, { v: 1, duration: reduce ? 0 : 0.25, ease: "none", onUpdate: paint, onComplete: r, overwrite: true }));
   measure(); recenter();                                  // in case the window was resized while loading
   const tl = prepareIntro(), t = reduce ? 0 : 1;          // cards are parked in their start pose while still hidden
   gsap.timeline({ onComplete() { loader.remove(); } })
-    .to("#loader .in", { yPercent: -30, opacity: 0, duration: 0.45 * t, ease: "power2.in" })
+    .to("#loader .in", { yPercent: -30, opacity: 0, duration: 0.3 * t, ease: "power2.in" })
     .add(() => { root.classList.remove("loading"); stage.inert = ui.inert = false; tl.play(); })
-    .to(loader, { yPercent: -100, duration: 0.9 * t, ease: "power3.inOut" }, "<");
+    .to(loader, { yPercent: -100, duration: 0.7 * t, ease: "power3.inOut" }, "<");
 })();
 </script>
 </body>
